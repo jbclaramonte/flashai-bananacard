@@ -3,13 +3,18 @@ package com.mobeezz.bananacard
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.material3.Text
+import androidx.activity.enableEdgeToEdge
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import com.mobeezz.bananacard.ui.navigation.AppNavHost
+import com.mobeezz.bananacard.ui.theme.BananaCardTheme
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
         super.onCreate(savedInstanceState)
-        setContent { Text("BananaCard") }
+        enableEdgeToEdge()
+        setContent { BananaCardTheme { AppNavHost() } }
     }
 }
