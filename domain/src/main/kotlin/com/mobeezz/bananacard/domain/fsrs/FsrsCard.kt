@@ -1,3 +1,7 @@
+/*
+ * Ported from fsrs 2.0.1 (https://pub.dev/packages/fsrs).
+ * Copyright (c) 2022 Open Spaced Repetition. MIT License, see third_party/fsrs/LICENSE.
+ */
 package com.mobeezz.bananacard.domain.fsrs
 
 import java.time.Instant
