@@ -29,3 +29,7 @@ google-services.json
 # Tool folders
 .omc/
 .omx/
+
+# FSRS fixture generator (Dart)
+tools/fsrs-fixtures/.dart_tool/
+tools/fsrs-fixtures/pubspec.lock
