@@ -1,0 +1,31 @@
+# Gradle / build
+.gradle/
+build/
+*/build/
+.kotlin/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Local configuration
+local.properties
+
+# IDE
+.idea/
+*.iml
+.DS_Store
+
+# Signing and secrets (never commit)
+*.jks
+*.keystore
+key.properties
+keystore.properties
+google-services.json
+*service-account*.json
+*serviceAccount*.json
+.env
+.env.*
+
+# Tool folders
+.omc/
+.omx/
