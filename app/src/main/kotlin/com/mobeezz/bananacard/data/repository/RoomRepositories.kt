@@ -25,7 +25,22 @@ class RoomDeckRepository(db: BananaCardDatabase) : DeckRepository {
 
     override suspend fun insert(deck: Deck) = dao.insert(deck.toEntity())
 
-    override suspend fun update(deck: Deck) = dao.update(deck.toEntity())
+    /** Writes every column except createdAt, which is immutable. */
+    override suspend fun update(deck: Deck) {
+        val e = deck.toEntity()
+        dao.updateEditable(
+            id = e.id,
+            name = e.name,
+            icon = e.icon,
+            iconColor = e.iconColor,
+            type = e.type,
+            sourceLanguage = e.sourceLanguage,
+            targetLanguage = e.targetLanguage,
+            description = e.description,
+            isPaused = e.isPaused,
+            updatedAt = e.updatedAt,
+        )
+    }
 
     override suspend fun delete(id: String) = dao.deleteById(id)
 }
@@ -43,7 +58,9 @@ class RoomFlashcardRepository(db: BananaCardDatabase) : FlashcardRepository {
 
     override suspend fun insert(cards: List<Flashcard>) = dao.insertAll(cards.map { it.toEntity() })
 
-    override suspend fun update(card: Flashcard) = dao.update(card.toEntity())
+    /** Writes question, answer and updatedAt only; schedule and createdAt are never overwritten. */
+    override suspend fun update(card: Flashcard) =
+        dao.updateText(card.id, card.question, card.answer, card.updatedAt.toEpochMilli())
 
     override suspend fun delete(ids: List<String>) = dao.deleteByIds(ids)
 }

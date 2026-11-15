@@ -29,7 +29,9 @@ class FakeDeckRepository : DeckRepository {
     override fun observeDecks(): Flow<List<Deck>> = decks.map { l -> l.sortedByDescending { it.createdAt } }
     override fun observeDeck(id: String): Flow<Deck?> = decks.map { l -> l.firstOrNull { it.id == id } }
     override suspend fun insert(deck: Deck) = decks.update { it + deck }
-    override suspend fun update(deck: Deck) = decks.update { l -> l.map { if (it.id == deck.id) deck else it } }
+    /** Like the Room implementation: every field except createdAt. */
+    override suspend fun update(deck: Deck) =
+        decks.update { l -> l.map { if (it.id == deck.id) deck.copy(createdAt = it.createdAt) else it } }
     override suspend fun delete(id: String) {
         decks.update { l -> l.filterNot { it.id == id } }
         linkedCards?.removeDeck(id)
@@ -44,7 +46,17 @@ class FakeFlashcardRepository : FlashcardRepository {
     override fun observeAllCards(): Flow<List<Flashcard>> = cards
     override suspend fun get(id: String): Flashcard? = cards.value.firstOrNull { it.id == id }
     override suspend fun insert(cards: List<Flashcard>) = this.cards.update { it + cards }
-    override suspend fun update(card: Flashcard) = cards.update { l -> l.map { if (it.id == card.id) card else it } }
+    /** Like the Room implementation: question, answer and updatedAt only. */
+    override suspend fun update(card: Flashcard) = cards.update { l ->
+        l.map { if (it.id == card.id) it.copy(question = card.question, answer = card.answer, updatedAt = card.updatedAt) else it }
+    }
+
+    /** Like the Room review write: schedule and updatedAt only; false when the card does not exist. */
+    internal fun updateSchedule(card: Flashcard): Boolean {
+        if (cards.value.none { it.id == card.id }) return false
+        cards.update { l -> l.map { if (it.id == card.id) it.copy(schedule = card.schedule, updatedAt = card.updatedAt) else it } }
+        return true
+    }
     override suspend fun delete(ids: List<String>) = cards.update { l -> l.filterNot { it.id in ids.toSet() } }
 
     internal fun removeDeck(deckId: String) = cards.update { l -> l.filterNot { it.deckId == deckId } }
@@ -94,7 +106,7 @@ class FakeReviewRepository(
     private val activity: FakeActivityRepository,
 ) : ReviewRepository {
     override suspend fun saveReview(card: Flashcard, date: LocalDate, wasNew: Boolean) {
-        flashcards.update(card)
+        check(flashcards.updateSchedule(card)) { "Cannot save review: card ${card.id} does not exist" }
         activity.recordReview(card.deckId, date, wasNew)
     }
 }

@@ -22,6 +22,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -148,9 +149,6 @@ class RoomRepositoriesTest {
         assertEquals(schedule, cards.get("c1")!!.schedule)
         assertEquals(review, cards.get("c2")!!.schedule)
 
-        cards.update(card("c1", "d1"))
-        assertNull(cards.get("c1")!!.schedule)
-
         cards.delete(listOf("c1", "c2"))
         assertNull(cards.get("c1"))
         assertNull(cards.get("c2"))
@@ -177,6 +175,80 @@ class RoomRepositoriesTest {
             assertEquals(day, status.date)
             cancelAndIgnoreRemainingEvents()
         }
+    }
+
+    @Test
+    fun deckUpdateKeepsOriginalCreatedAt() = runTest {
+        val original = deck("d1")
+        decks.insert(original)
+
+        val edited = original.copy(
+            name = "renamed", isPaused = true, description = null,
+            createdAt = t0.plusSeconds(999), updatedAt = t0.plusSeconds(50),
+        )
+        decks.update(edited)
+
+        decks.observeDeck("d1").test {
+            val loaded = awaitItem()!!
+            assertEquals(t0, loaded.createdAt)
+            assertEquals(edited.copy(createdAt = t0), loaded)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun cardEditKeepsScheduleAndCreatedAt() = runTest {
+        decks.insert(deck("d1"))
+        val schedule = CardSchedule(CardState.REVIEW, null, 8.0, 5.5, t0.plusSeconds(3600), t0)
+        cards.insert(listOf(card("c1", "d1", schedule = schedule)))
+
+        // The caller holds a stale or foreign object: new text, but no schedule and another created_at.
+        val edit = card("c1", "d1").copy(
+            question = "new q", answer = "new a",
+            createdAt = t0.plusSeconds(777), updatedAt = t0.plusSeconds(20),
+        )
+        cards.update(edit)
+
+        val loaded = cards.get("c1")!!
+        assertEquals("new q", loaded.question)
+        assertEquals("new a", loaded.answer)
+        assertEquals(t0.plusSeconds(20), loaded.updatedAt)
+        assertEquals(schedule, loaded.schedule)
+        assertEquals(t0, loaded.createdAt)
+    }
+
+    @Test
+    fun saveReviewWithStaleTextDoesNotRevertEdit() = runTest {
+        decks.insert(deck("d1"))
+        val stale = card("c1", "d1")
+        cards.insert(listOf(stale))
+        cards.update(stale.copy(question = "edited q", answer = "edited a", updatedAt = t0.plusSeconds(5)))
+
+        val s = CardSchedule(CardState.REVIEW, null, 5.0, 5.0, t0.plusSeconds(100), t0)
+        reviews.saveReview(stale.copy(schedule = s, updatedAt = t0.plusSeconds(10)), day, wasNew = true)
+
+        val loaded = cards.get("c1")!!
+        assertEquals("edited q", loaded.question)
+        assertEquals("edited a", loaded.answer)
+        assertEquals(s, loaded.schedule)
+        assertEquals(t0.plusSeconds(10), loaded.updatedAt)
+        assertEquals(t0, loaded.createdAt)
+    }
+
+    @Test
+    fun saveReviewOnMissingCardWritesNoActivity() = runTest {
+        decks.insert(deck("d1"))
+
+        val s = CardSchedule(CardState.REVIEW, null, 5.0, 5.0, t0.plusSeconds(100), t0)
+        try {
+            reviews.saveReview(card("ghost", "d1", schedule = s), day, wasNew = true)
+            fail("saveReview on a missing card must throw")
+        } catch (expected: IllegalStateException) {
+            // expected: the whole transaction is rolled back
+        }
+
+        activity.observeCardsReviewed(day).test { assertEquals(0, awaitItem()); cancelAndIgnoreRemainingEvents() }
+        activity.observeDailyStatuses(day).test { assertTrue(awaitItem().isEmpty()); cancelAndIgnoreRemainingEvents() }
     }
 
     @Test
