@@ -18,16 +18,11 @@ class StreakService(
     /** Computes current from activity, persists best = max(stored, current), returns both. */
     suspend fun refresh(): StreakSnapshot {
         val today = LocalDate.ofInstant(clock.instant(), zone())
-        val days = activity.activeDaysSince(today.minusDays(WINDOW_DAYS))
+        val days = activity.activeDaysSince(LocalDate.EPOCH)
         val current = currentStreak(days, today)
         val stored = settings.bestStreak.first()
         val best = maxOf(stored, current)
         if (best != stored) settings.setBestStreak(best)
         return StreakSnapshot(current, best)
-    }
-
-    private companion object {
-        /** Longest meaningful milestone is 365 days. */
-        const val WINDOW_DAYS = 400L
     }
 }
