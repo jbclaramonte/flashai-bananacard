@@ -43,6 +43,13 @@ class StreakServiceTest {
         assertEquals(0, settings.bestStreakWrites)
     }
 
+    @Test fun streakLongerThanFourHundredDaysIsNotCapped() = runTest {
+        activeLast(500)
+
+        assertEquals(StreakSnapshot(500, 500), service.refresh())
+        assertEquals(500, settings.bestStreak.first())
+    }
+
     @Test fun refreshUsesZoneProviderForToday() = runTest {
         var current = ZoneId.of("UTC")
         val svc = StreakService(activity, settings, Clock.fixed(Instant.parse("2026-05-10T23:30:00Z"), ZoneId.of("UTC"))) { current }
