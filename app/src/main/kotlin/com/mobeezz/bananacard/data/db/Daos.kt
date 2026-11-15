@@ -4,7 +4,6 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Transaction
-import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -19,8 +18,24 @@ interface DeckDao {
     @Insert
     suspend fun insert(deck: DeckEntity)
 
-    @Update
-    suspend fun update(deck: DeckEntity)
+    // Every column except created_at, which is immutable (spec section 6).
+    @Query(
+        "UPDATE decks SET name = :name, icon = :icon, icon_color = :iconColor, type = :type, " +
+            "source_language = :sourceLanguage, target_language = :targetLanguage, " +
+            "description = :description, is_paused = :isPaused, updated_at = :updatedAt WHERE id = :id",
+    )
+    suspend fun updateEditable(
+        id: String,
+        name: String,
+        icon: String,
+        iconColor: Long,
+        type: String?,
+        sourceLanguage: String?,
+        targetLanguage: String?,
+        description: String?,
+        isPaused: Boolean,
+        updatedAt: Long,
+    )
 
     @Query("DELETE FROM decks WHERE id = :id")
     suspend fun deleteById(id: String)
@@ -40,8 +55,9 @@ interface FlashcardDao {
     @Insert
     suspend fun insertAll(cards: List<FlashcardEntity>)
 
-    @Update
-    suspend fun update(card: FlashcardEntity)
+    // Editing a card touches question and answer only; the FSRS state is kept (spec section 7.1).
+    @Query("UPDATE flashcards SET question = :question, answer = :answer, updated_at = :updatedAt WHERE id = :id")
+    suspend fun updateText(id: String, question: String, answer: String, updatedAt: Long)
 
     @Query("DELETE FROM flashcards WHERE id IN (:ids)")
     suspend fun deleteByIds(ids: List<String>)
@@ -84,8 +100,22 @@ abstract class DeckDailyStatusDao {
 /** Holds the multi-table review write so it runs in a single transaction. */
 @Dao
 abstract class ReviewDao {
-    @Update
-    protected abstract suspend fun updateCard(card: FlashcardEntity)
+    // Schedule columns and updated_at only, so a stale question/answer cannot revert an edit.
+    @Query(
+        "UPDATE flashcards SET state = :state, step = :step, stability = :stability, " +
+            "difficulty = :difficulty, due = :due, last_review = :lastReview, updated_at = :updatedAt " +
+            "WHERE id = :id",
+    )
+    protected abstract suspend fun updateSchedule(
+        id: String,
+        state: String?,
+        step: Int?,
+        stability: Double?,
+        difficulty: Double?,
+        due: Long?,
+        lastReview: Long?,
+        updatedAt: Long,
+    ): Int
 
     @Query(
         "INSERT INTO daily_activity (date, cards_reviewed) VALUES (:date, 1) " +
@@ -103,7 +133,12 @@ abstract class ReviewDao {
 
     @Transaction
     open suspend fun saveReview(card: FlashcardEntity, date: String, wasNew: Boolean) {
-        updateCard(card)
+        val updated = updateSchedule(
+            card.id, card.state, card.step, card.stability, card.difficulty,
+            card.due, card.lastReview, card.updatedAt,
+        )
+        // Throwing aborts the @Transaction, so no activity or daily status is written for a missing card.
+        check(updated == 1) { "Cannot save review: card ${card.id} does not exist" }
         incrementActivity(date)
         upsertReviewed(card.deckId, date, if (wasNew) 1 else 0)
     }
