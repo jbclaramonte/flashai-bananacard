@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- English strings. app_name is provided per flavor via resValue. -->
+    <string name="tab_library">LIBRARY</string>
+    <string name="tab_review">REVIEW</string>
+    <string name="tab_profile">PROFILE</string>
+</resources>

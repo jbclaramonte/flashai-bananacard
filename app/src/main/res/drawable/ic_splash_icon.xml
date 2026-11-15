@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Same 16% inset as the adaptive launcher icon so the splash circle mask does not clip the artwork. -->
+<inset xmlns:android="http://schemas.android.com/apk/res/android"
+    android:drawable="@drawable/ic_launcher_foreground"
+    android:inset="16%" />

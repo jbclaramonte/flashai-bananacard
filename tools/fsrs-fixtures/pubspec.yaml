@@ -1,0 +1,9 @@
+name: fsrs_fixtures
+description: Generates FSRS reference fixtures from the Dart fsrs package.
+publish_to: none
+
+environment:
+  sdk: ^3.0.0
+
+dependencies:
+  fsrs: 2.0.1

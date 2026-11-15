@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Chaines francaises. app_name est fourni par flavor via resValue. -->
+    <string name="tab_library">BIBLIOTHÈQUE</string>
+    <string name="tab_review">RÉVISION</string>
+    <string name="tab_profile">PROFIL</string>
+</resources>
